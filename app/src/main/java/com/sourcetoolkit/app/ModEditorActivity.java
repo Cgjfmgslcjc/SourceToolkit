@@ -1,5 +1,5 @@
 package com.sourcetoolkit.app;
-import android.app.*;import android.os.Bundle;import android.net.Uri;import android.view.*;import android.widget.*;import android.graphics.Typeface;import androidx.documentfile.provider.DocumentFile;import java.io.*;
+import android.app.*;import android.content.Intent;import android.os.Bundle;import android.net.Uri;import android.view.*;import android.widget.*;import android.graphics.Typeface;import androidx.documentfile.provider.DocumentFile;import java.io.*;
 public class ModEditorActivity extends Activity{
  DocumentFile mod;LinearLayout list;int dp(float x){return (int)(x*getResources().getDisplayMetrics().density+.5f);}
  @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(0xFF0B0E10);getWindow().setNavigationBarColor(0xFF0B0E10);Uri u=Uri.parse(getIntent().getStringExtra("uri"));mod=DocumentFile.fromTreeUri(this,u);if(mod==null)mod=DocumentFile.fromSingleUri(this,u);render();}
