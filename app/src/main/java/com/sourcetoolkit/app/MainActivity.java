@@ -19,15 +19,16 @@ public class MainActivity extends Activity {
  }
  @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);checkDefaultAccess();render();}
  void checkDefaultAccess(){
-  File f=new File(DEFAULT_GAME_PATH);
-  if(!f.isDirectory())return;
   if(Build.VERSION.SDK_INT>=30){
-   if(Environment.isExternalStorageManager())saveDefaultGameRoot(this);
-   else new AlertDialog.Builder(this).setTitle("需要文件访问权限").setMessage("Source Toolkit 将使用默认游戏目录：\n"+DEFAULT_GAME_PATH+"\n请允许管理所有文件，以便应用内文件管理器访问游戏资源。").setPositiveButton("授权",(d,w)->{try{Intent i=new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,Uri.parse("package:"+getPackageName()));startActivity(i);}catch(Exception e){startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));}}).setNegativeButton("稍后",null).show();
+   if(!Environment.isExternalStorageManager()){
+    new AlertDialog.Builder(this).setTitle("需要文件访问权限").setMessage("Source Toolkit 将直接使用默认游戏目录：\n"+DEFAULT_GAME_PATH+"\n请允许管理所有文件，之后不再需要手动选择目录。").setPositiveButton("授权",(d,w)->{try{startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,Uri.parse("package:"+getPackageName())));}catch(Exception e){startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));}}).setNegativeButton("稍后",null).show();return;
+   }
   }else if(Build.VERSION.SDK_INT>=23){
-   if(checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)==PackageManager.PERMISSION_GRANTED&&checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)==PackageManager.PERMISSION_GRANTED)saveDefaultGameRoot(this);
-   else requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,Manifest.permission.WRITE_EXTERNAL_STORAGE},120);
-  }else saveDefaultGameRoot(this);
+   if(checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)!=PackageManager.PERMISSION_GRANTED||checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)!=PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,Manifest.permission.WRITE_EXTERNAL_STORAGE},120);return;}
+  }
+  File f=new File(DEFAULT_GAME_PATH);
+  if(f.isDirectory())saveDefaultGameRoot(this);
+  else Toast.makeText(this,"默认游戏目录不存在："+DEFAULT_GAME_PATH,Toast.LENGTH_LONG).show();
  }
  @Override protected void onResume(){super.onResume();if(Build.VERSION.SDK_INT>=30&&Environment.isExternalStorageManager()){saveDefaultGameRoot(this);render();}}
  @Override public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==120&&g.length>=2&&g[0]==0&&g[1]==0){saveDefaultGameRoot(this);render();}}
