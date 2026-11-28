@@ -2,6 +2,7 @@
  <application android:theme="@style/AppTheme" android:label="Source Toolkit" android:allowBackup="true" android:supportsRtl="true">
   <activity android:name=".ModFolderActivity" android:exported="false"/>
   <activity android:name=".ModEditorActivity" android:exported="false"/>
+  <activity android:name=".GameFolderPickerActivity" android:exported="false"/>
   <activity android:name=".VtfConverterActivity" android:exported="false"/>
   <activity android:name=".VtfToPngActivity" android:exported="false"/>\n  <activity android:name=".VpkBrowserActivity" android:exported="false"/>\n  <activity android:name=".GmodModActivity" android:exported="false"/>
   <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
