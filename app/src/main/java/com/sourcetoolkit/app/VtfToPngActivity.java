@@ -90,9 +90,6 @@ public class VtfToPngActivity extends Activity {
         prev.setEnabled(has&&currentFrame>0);next.setEnabled(has&&currentFrame<frameCount-1);save.setEnabled(has);
         prev.setAlpha(prev.isEnabled()?1f:.4f);next.setAlpha(next.isEnabled()?1f:.4f);save.setAlpha(has?1f:.4f);
     }
-    void savePng(){
-        if(preview==null)return;
-        Intent i=new Intent(this,GameFolderPickerActivity.class);i.putExtra("mode","folder");i.putExtra("start_path","");startActivityForResult(i,SAVE_PNG);
-    }
+    void savePng(){if(preview==null)return;Intent i=new Intent(this,GameFolderPickerActivity.class);i.putExtra("mode","folder");i.putExtra("start_path","");startActivityForResult(i,SAVE_PNG);}
     @Override protected void onDestroy(){super.onDestroy();if(preview!=null&&!preview.isRecycled())preview.recycle();}
 }
