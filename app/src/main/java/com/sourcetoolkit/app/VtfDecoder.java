@@ -10,6 +10,12 @@ import java.util.Arrays;
 public final class VtfDecoder {
     private VtfDecoder() {}
     public static Bitmap decode(byte[] data) throws IOException { return decode(data,0); }
+    public static int frameCount(byte[] data) throws IOException {
+        if(data==null||data.length<26||data[0]!='V'||data[1]!='T'||data[2]!='F') throw new IOException("无效的 VTF 文件");
+        int count=(data[24]&255)|((data[25]&255)<<8);
+        if(count<1) throw new IOException("VTF 帧数无效");
+        return count;
+    }
     public static Bitmap decode(byte[] data,int frameIndex) throws IOException {
         if(data==null||data.length<64)throw new IOException("VTF 文件太短");
         ByteBuffer b=ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
