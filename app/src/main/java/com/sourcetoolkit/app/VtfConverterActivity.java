@@ -7,16 +7,19 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.widget.*;
+import androidx.documentfile.provider.DocumentFile;
 import java.io.*;
 import java.nio.*;
 import java.util.*;
 
 public class VtfConverterActivity extends Activity {
-    static final int PICK_IMAGE=81, SAVE_VTF=82;
+    static final int PICK_IMAGE=81, SAVE_VTF=82, PICK_EXPORT_FOLDER=83;
     static final int MAX_FRAMES=65535;
     final int BG=0xFF0B0E10, TEXT=0xFFE6EAED, MUTED=0xFF9AA5AD, BLUE=0xFF2D9CFF;
     final ArrayList<Bitmap> frames=new ArrayList<>();
     int currentFrame=0;
+    String exportName="texture";
+    int exportMode=0;
     TextView info;
     ImageView previewView;
     Button previousButton,nextButton,removeButton;
@@ -109,8 +112,96 @@ public class VtfConverterActivity extends Activity {
 
     void save(){
         if(frames.isEmpty()){Toast.makeText(this,"请先添加图片",Toast.LENGTH_SHORT).show();return;}
-        Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/octet-stream");
-        i.putExtra(Intent.EXTRA_TITLE,"texture.vtf");startActivityForResult(i,SAVE_VTF);
+        String game=getSharedPreferences(MainActivity.PREF,0).getString(MainActivity.GAME_URI,null);
+        if(game==null){Toast.makeText(this,"请先在主界面设置游戏目录",Toast.LENGTH_LONG).show();return;}
+        EditText name=new EditText(this);name.setSingleLine(true);name.setText(exportName);
+        new AlertDialog.Builder(this).setTitle("导出文件名（不含扩展名）").setView(name)
+          .setPositiveButton("下一步",(d,w)->{
+            exportName=name.getText().toString().trim().replaceAll("[^A-Za-z0-9_ -]","_");
+            if(exportName.isEmpty())exportName="texture";
+            showExportTargets();
+          }).setNegativeButton("取消",null).show();
+    }
+    void showExportTargets(){
+        String[] labels={"导出到喷漆文件夹（materials/vgui/logos）","导出到贴图文件夹（materials）","导出到自定义文件夹"};
+        new AlertDialog.Builder(this).setTitle("选择游戏内导出位置").setItems(labels,(d,which)->{
+            exportMode=which;
+            if(which==0)exportToGame("materials/vgui/logos");
+            else if(which==1)exportToGame("materials");
+            else{Intent i=new Intent(this,GameFolderPickerActivity.class);i.putExtra("start_path","materials");startActivityForResult(i,PICK_EXPORT_FOLDER);}
+        }).setNegativeButton("取消",null).show();
+    }
+    DocumentFile ensureFolder(DocumentFile root,String relative)throws IOException{
+        DocumentFile current=root;
+        if(relative.isEmpty())return current;
+        for(String part:relative.split("/")){
+            if(part.isEmpty()||part.equals(".")||part.equals(".."))throw new IOException("非法目录路径");
+            DocumentFile next=current.findFile(part);
+            if(next==null)next=current.createDirectory(part);
+            if(next==null||!next.isDirectory())throw new IOException("无法创建目录："+part);
+            current=next;
+        }
+        return current;
+    }
+    void writeGameFile(DocumentFile folder,String name,String mime,byte[] bytes)throws IOException{
+        DocumentFile old=folder.findFile(name);
+        if(old!=null&&!old.delete())throw new IOException("无法覆盖文件："+name);
+        DocumentFile file=folder.createFile(mime,name);
+        if(file==null)throw new IOException("无法创建文件："+name);
+        try(OutputStream out=getContentResolver().openOutputStream(file.getUri())){
+            if(out==null)throw new IOException("无法写入文件："+name);
+            out.write(bytes);
+        }
+    }
+    @Override protected void onActivityResult(int request,int result,Intent data){
+        super.onActivityResult(request,result,data);
+        if(request==PICK_EXPORT_FOLDER&&result==RESULT_OK&&data!=null){
+            String folder=data.getStringExtra("folder_path");
+            if(folder==null||!folder.startsWith("materials")){Toast.makeText(this,"只能导出到 materials 文件夹内",Toast.LENGTH_LONG).show();return;}
+            exportToGame(folder);
+            return;
+        }
+        if(result!=RESULT_OK||data==null)return;
+        try{
+            if(request==PICK_IMAGE){
+                ArrayList<Uri> uris=new ArrayList<>();
+                if(data.getClipData()!=null){ClipData clip=data.getClipData();for(int i=0;i<clip.getItemCount();i++)uris.add(clip.getItemAt(i).getUri());}
+                else if(data.getData()!=null)uris.add(data.getData());
+                if(uris.isEmpty())throw new IOException("没有选择图片");
+                if(frames.size()+uris.size()>MAX_FRAMES)throw new IOException("VTF 帧数不能超过 65535");
+                int expectedW=frames.isEmpty()?-1:frames.get(0).getWidth(),expectedH=frames.isEmpty()?-1:frames.get(0).getHeight();
+                ArrayList<Bitmap> decoded=new ArrayList<>();
+                for(Uri uri:uris){
+                    Bitmap bitmap;try(InputStream in=getContentResolver().openInputStream(uri)){bitmap=BitmapFactory.decodeStream(in);}
+                    if(bitmap==null)throw new IOException("有图片无法解码");
+                    if(expectedW<0){expectedW=bitmap.getWidth();expectedH=bitmap.getHeight();}
+                    if(bitmap.getWidth()!=expectedW||bitmap.getHeight()!=expectedH){bitmap.recycle();for(Bitmap b:decoded)b.recycle();throw new IOException("多帧 VTF 要求所有图片尺寸一致。当前尺寸应为 "+expectedW+" × "+expectedH);}
+                    decoded.add(bitmap);
+                }
+                frames.addAll(decoded);currentFrame=frames.size()-decoded.size();updateUi();Toast.makeText(this,"已添加 "+decoded.size()+" 帧",Toast.LENGTH_SHORT).show();
+            }
+        }catch(Exception e){Toast.makeText(this,"转换失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
+    }
+    void exportToGame(String relative){
+        try{
+            String uri=getSharedPreferences(MainActivity.PREF,0).getString(MainActivity.GAME_URI,null);
+            if(uri==null)throw new IOException("尚未设置游戏目录");
+            DocumentFile root=DocumentFile.fromTreeUri(this,Uri.parse(uri));
+            if(root==null||!root.isDirectory())throw new IOException("游戏目录授权失效，请重新选择");
+            if(!relative.equals("materials")&&!relative.startsWith("materials/"))throw new IOException("导出位置必须在 materials 内");
+            DocumentFile target=ensureFolder(root,relative);
+            ByteArrayOutputStream vtf=new ByteArrayOutputStream();writeVtf(vtf,frames);
+            writeGameFile(target,exportName+".vtf","application/octet-stream",vtf.toByteArray());
+            String baseTexture=relative.equals("materials")?exportName:relative.substring("materials/".length()).replace('/','/')+"/"+exportName;
+            String vmt;
+            if(exportMode==0){
+                vmt="\"UnlitGeneric\"\\n{\\n    \"$basetexture\" \"vgui/logos/"+exportName+"\"\\n    \"$translucent\" \"1\"\\n    \"$vertexcolor\" \"1\"\\n    \"$vertexalpha\" \"1\"\\n}\\n";
+            }else{
+                vmt="\"LightmappedGeneric\"\\n{\\n    \"$basetexture\" \""+baseTexture+"\"\\n}\\n";
+            }
+            writeGameFile(target,exportName+".vmt","text/plain",vmt.getBytes("UTF-8"));
+            Toast.makeText(this,"VTF 与配套 VMT 已导出到 garrysmod/"+relative,Toast.LENGTH_LONG).show();
+        }catch(Exception e){Toast.makeText(this,"导出失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
     }
 
     static void writeVtf(OutputStream stream,List<Bitmap> images)throws IOException{
