@@ -13,7 +13,7 @@ import java.io.*;
 import java.util.*;
 
 public class VpkBrowserActivity extends Activity {
-    static final int PICK_VPK=71, SAVE_ENTRY=72, PICK_OUTPUT=73;
+    static final int PICK_VPK_FOLDER=71, PICK_OUTPUT=73;
     final int BG=0xFF0B0E10, SURFACE=0xFF12171B, LINE=0xFF232B31, BLUE=0xFF2D9CFF, TEXT=0xFFE6EAED, MUTED=0xFF9AA5AD;
     File archiveFile;
     ArrayList<SourceFormats.Entry> entries=new ArrayList<>();
@@ -33,8 +33,9 @@ public class VpkBrowserActivity extends Activity {
         LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(16),dp(16),dp(16),dp(12));root.setBackgroundColor(BG);setContentView(root);
         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);
         TextView title=text("VPK BROWSER",20,TEXT,true);top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        Button open=button("打开 VPK",BLUE,BG);top.addView(open,new LinearLayout.LayoutParams(dp(110),dp(42)));open.setOnClickListener(v->pick());
+        Button open=button("游戏目录 VPK",BLUE,BG);top.addView(open,new LinearLayout.LayoutParams(dp(130),dp(42)));open.setOnClickListener(v->scanVpkFolder(""));
         root.addView(top);
+        Button other=button("选择其他文件夹",0xFF1B2227,TEXT);LinearLayout.LayoutParams op=new LinearLayout.LayoutParams(-1,dp(42));op.topMargin=dp(8);root.addView(other,op);other.setOnClickListener(v->pickOtherFolder());
         status=text("选择一个 *_dir.vpk 文件以浏览归档。",11,MUTED,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(12);root.addView(status,sp);
         search=new EditText(this);search.setSingleLine(true);search.setTextColor(TEXT);search.setHintTextColor(MUTED);search.setHint("搜索文件名");search.setPadding(dp(10),0,dp(10),0);search.setBackground(bg(SURFACE));LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(-1,dp(44));ep.topMargin=dp(14);root.addView(search,ep);
         ScrollView scroll=new ScrollView(this);list=new LinearLayout(this);list.setOrientation(1);scroll.addView(list);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,0,1);lp.topMargin=dp(10);root.addView(scroll,lp);
@@ -43,14 +44,41 @@ public class VpkBrowserActivity extends Activity {
         search.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){filter();}public void afterTextChanged(Editable e){}});
     }
     Button button(String s,int color,int tc){Button b=new Button(this);b.setText(s);b.setTextSize(13);b.setTextColor(tc);b.setAllCaps(false);b.setBackground(bg(color));return b;}
-    void pick(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,PICK_VPK);}
     @Override protected void onActivityResult(int request,int result,Intent data){
-        super.onActivityResult(request,result,data);if(result!=RESULT_OK||data==null)return;
+        super.onActivityResult(request,result,data);
+        if(request==PICK_VPK_FOLDER&&result==RESULT_OK&&data!=null)scanVpkFolder(data.getStringExtra("folder_path"));
+        else if(request==PICK_OUTPUT&&result==RESULT_OK&&data!=null)exportDir=DocumentFile.fromTreeUri(this,data.getData());
+    }
+    void pickOtherFolder(){Intent i=new Intent(this,GameFolderPickerActivity.class);i.putExtra("start_path","");startActivityForResult(i,PICK_VPK_FOLDER);}
+    DocumentFile resolveGameFolder(String relative)throws IOException{
+        String uri=getSharedPreferences(MainActivity.PREF,0).getString(MainActivity.GAME_URI,null);
+        if(uri==null)throw new IOException("请先在主界面设置游戏目录");
+        DocumentFile folder=DocumentFile.fromTreeUri(this,Uri.parse(uri));
+        if(folder==null)throw new IOException("游戏目录授权失效");
+        if(relative!=null&&!relative.isEmpty())for(String part:relative.split("/")){folder=folder.findFile(part);if(folder==null)throw new IOException("找不到目录："+relative);}
+        if(!folder.isDirectory())throw new IOException("所选位置不是文件夹");
+        return folder;
+    }
+    void scanVpkFolder(String relative){
         try{
-            if(request==PICK_OUTPUT){Uri u=data.getData();getContentResolver().takePersistableUriPermission(u,data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));exportDir=DocumentFile.fromTreeUri(this,u);if(exportDir==null||!exportDir.isDirectory())throw new IOException("无法访问导出目录");Toast.makeText(this,"已设置导出目录",Toast.LENGTH_SHORT).show();}
-            else if(request==PICK_VPK){Uri u=data.getData();getContentResolver().takePersistableUriPermission(u,data.getFlags()&Intent.FLAG_GRANT_READ_URI_PERMISSION);DocumentFile dir=DocumentFile.fromTreeUri(this,u);if(dir==null||!dir.isDirectory())throw new IOException("无法读取所选目录");DocumentFile main=null;File cacheDir=new File(getCacheDir(),"vpk_"+System.currentTimeMillis());if(!cacheDir.mkdirs())throw new IOException("无法创建缓存目录");for(DocumentFile child:dir.listFiles()){String n=child.getName();if(child.isFile()&&n!=null&&n.toLowerCase(Locale.ROOT).endsWith(".vpk")){File cached=copyToCache(child,cacheDir);if(n.toLowerCase(Locale.ROOT).endsWith("_dir.vpk"))main=child;}}if(main==null)throw new IOException("所选目录中没有 *_dir.vpk 文件");archiveFile=new File(cacheDir,main.getName());entries.clear();entries.addAll(SourceFormats.readVpk(archiveFile));status.setText(main.getName()+"  ·  "+entries.size()+" 个文件");filter();}
-            else if(request==SAVE_ENTRY&&selected!=null){OutputStream out=getContentResolver().openOutputStream(data.getData());if(out==null)throw new IOException("无法创建目标文件");byte[] bytes=SourceFormats.readVpkEntry(archiveFile,selected);out.write(bytes);out.close();Toast.makeText(this,"导出完成",Toast.LENGTH_SHORT).show();}
-        }catch(Exception e){Toast.makeText(this,"操作失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
+            DocumentFile dir=resolveGameFolder(relative);
+            ArrayList<DocumentFile> archives=new ArrayList<>();
+            for(DocumentFile f:dir.listFiles()){String n=f.getName();if(f.isFile()&&n!=null&&n.toLowerCase(Locale.ROOT).endsWith(".vpk"))archives.add(f);}
+            if(archives.isEmpty()){status.setText("该目录没有 VPK 文件");return;}
+            Collections.sort(archives,(a,b)->a.getName().compareToIgnoreCase(b.getName()));
+            String[] names=new String[archives.size()];for(int i=0;i<names.length;i++)names[i]=archives.get(i).getName();
+            new AlertDialog.Builder(this).setTitle("选择 VPK · "+(relative==null||relative.isEmpty()?"garrysmod":relative)).setItems(names,(dialog,which)->loadVpkSet(dir,archives.get(which))).setNegativeButton("取消",null).show();
+        }catch(Exception e){Toast.makeText(this,"读取 VPK 目录失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
+    }
+    void loadVpkSet(DocumentFile dir,DocumentFile chosen){
+        try{
+            File cacheDir=new File(getCacheDir(),"vpk_"+System.currentTimeMillis());
+            if(!cacheDir.mkdirs())throw new IOException("无法创建缓存目录");
+            for(DocumentFile child:dir.listFiles()){String n=child.getName();if(child.isFile()&&n!=null&&n.toLowerCase(Locale.ROOT).endsWith(".vpk"))copyToCache(child,cacheDir);}
+            archiveFile=new File(cacheDir,chosen.getName());
+            entries.clear();entries.addAll(SourceFormats.readVpk(archiveFile));selected=null;
+            status.setText(chosen.getName()+"  ·  "+entries.size()+" 个文件");filter();
+        }catch(Exception e){Toast.makeText(this,"打开 VPK 失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
     }
     File copyToCache(DocumentFile doc,File targetDir)throws Exception{
         File out=new File(targetDir,doc.getName());
@@ -68,7 +96,7 @@ public class VpkBrowserActivity extends Activity {
         if(selected==null||archiveFile==null){Toast.makeText(this,"请先选择一个文件",Toast.LENGTH_SHORT).show();return;}
         if(exportDir==null){Toast.makeText(this,"请先选择导出目录",Toast.LENGTH_SHORT).show();return;}
         try{
-            String normalized=selected.name.replace('\\\\','/');
+            String normalized=selected.name.replace((char)92,'/');
             String[] parts=normalized.split("/");
             DocumentFile parent=exportDir;
             for(int i=0;i<parts.length-1;i++){
