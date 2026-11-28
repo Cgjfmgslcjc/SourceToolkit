@@ -115,7 +115,7 @@ public final class SourceFormats {
                         byte[] preload=new byte[preloadSize]; f.readFully(preload);
                         String full=(path.equals(" ")?"":path+"/")+name+(ext.equals(" ")?"":"."+ext);
                         long dataOffset=archive==0x7fff ? treeEnd+offset : -1;
-                        if (archive==0x7fff) requireRange(dataOffset,length,treeEnd+fileDataSectionSize,"VPK inline entry " + full);
+                        if (archive==0x7fff) requireRange(dataOffset,length,version==2?treeEnd+fileDataSectionSize:f.length(),"VPK inline entry " + full);
                         out.add(new Entry(full,offset,length,crc,archive,preload,dataOffset));
                     }
                 }
