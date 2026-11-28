@@ -14,7 +14,7 @@ public class GameFolderPickerActivity extends Activity {
  LinearLayout base=new LinearLayout(this);base.setOrientation(1);base.setPadding(dp(16),dp(16),dp(16),dp(12));base.setBackgroundColor(BG);setContentView(base);
  base.addView(text(mode.equals("folder")?"选择文件夹":"选择文件",19,TEXT));breadcrumb=text("",11,MUTED);LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,-2);bp.topMargin=dp(10);base.addView(breadcrumb,bp);
  LinearLayout nav=new LinearLayout(this);Button up=button("上一级"),choose=button(mode.equals("folder")?"选择当前目录":mode.equals("multi")?"完成选择":"返回");nav.addView(up,new LinearLayout.LayoutParams(0,dp(44),1));nav.addView(choose,new LinearLayout.LayoutParams(0,dp(44),1));LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.topMargin=dp(12);base.addView(nav,np);
- up.setOnClickListener(v->goUp());choose.setOnClickListener(v->{if(mode.equals("folder"))selectCurrent();else if(mode.equals("multi"))finishMulti();else setResult(RESULT_CANCELED);if(!mode.equals("file"))finish();});
+ up.setOnClickListener(v->goUp());choose.setOnClickListener(v->{if(mode.equals("folder"))selectCurrent();else if(mode.equals("multi"))finishMulti();else setResult(RESULT_CANCELED);finish();});
  ScrollView scroll=new ScrollView(this);list=new LinearLayout(this);list.setOrientation(1);scroll.addView(list);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,0,1);lp.topMargin=dp(12);base.addView(scroll,lp);render();}
  DocumentFile resolve(String p){DocumentFile f=root;if(p==null||p.isEmpty())return f;for(String x:p.split("/")){f=f.findFile(x);if(f==null)return null;}return f;}
  String relative(DocumentFile f){return path.isEmpty()?f.getName():path+"/"+f.getName();}
