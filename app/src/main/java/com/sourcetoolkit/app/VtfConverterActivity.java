@@ -22,7 +22,7 @@ public class VtfConverterActivity extends Activity {
         LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(18),dp(18),dp(18),dp(16));root.setBackgroundColor(BG);setContentView(root);
         root.addView(text("VTF CONVERTER",20,TEXT));
         TextView desc=text("将 PNG / JPG 图片编码为 VTF 7.2（RGBA8888）。",11,MUTED);LinearLayout.LayoutParams dp1=new LinearLayout.LayoutParams(-1,-2);dp1.topMargin=dp(8);root.addView(desc,dp1);
-        ImageView preview=new ImageView(this);preview.setScaleType(ImageView.ScaleType.FIT_CENTER);LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,0,1);pp.topMargin=dp(16);pp.bottomMargin=dp(12);root.addView(preview,pp);
+        ImageView preview=new ImageView(this);previewView=preview;preview.setScaleType(ImageView.ScaleType.FIT_CENTER);LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,0,1);pp.topMargin=dp(16);pp.bottomMargin=dp(12);root.addView(preview,pp);
         info=text("尚未选择图片",12,MUTED);info.setGravity(Gravity.CENTER);root.addView(info);
         Button choose=button("选择图片");root.addView(choose,new LinearLayout.LayoutParams(-1,dp(48)));choose.setOnClickListener(v->pick());
         Button save=button("导出 VTF");LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,dp(48));sp.topMargin=dp(10);root.addView(save,sp);save.setOnClickListener(v->save());
@@ -32,7 +32,7 @@ public class VtfConverterActivity extends Activity {
     void pick(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,PICK_IMAGE);}
     @Override protected void onActivityResult(int r,int c,Intent d){
         super.onActivityResult(r,c,d);if(c!=RESULT_OK||d==null)return;
-        try{if(r==PICK_IMAGE){InputStream in=getContentResolver().openInputStream(d.getData());bitmap=BitmapFactory.decodeStream(in);in.close();if(bitmap==null)throw new IOException("无法解码图片");ImageView preview=(ImageView)((LinearLayout)findViewById(android.R.id.content).getChildAt(0)).getChildAt(1);preview.setImageBitmap(bitmap);info.setText(bitmap.getWidth()+" × "+bitmap.getHeight()+"  ·  RGBA8888");}
+        try{if(r==PICK_IMAGE){InputStream in=getContentResolver().openInputStream(d.getData());bitmap=BitmapFactory.decodeStream(in);in.close();if(bitmap==null)throw new IOException("无法解码图片");previewView.setImageBitmap(bitmap);info.setText(bitmap.getWidth()+" × "+bitmap.getHeight()+"  ·  RGBA8888");}
             else if(r==SAVE_VTF&&bitmap!=null){OutputStream out=getContentResolver().openOutputStream(d.getData());if(out==null)throw new IOException("无法写入目标文件");writeVtf(out,bitmap);out.close();Toast.makeText(this,"VTF 导出完成",Toast.LENGTH_SHORT).show();}
         }catch(Exception e){Toast.makeText(this,"转换失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
     }
