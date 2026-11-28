@@ -20,7 +20,7 @@ public class GmodModActivity extends Activity {
  DocumentFile addons,disabled;
  LinearLayout list;
  ArrayList<DocumentFile> items=new ArrayList<>();
- ArrayList<Boolean> enabled=new ArrayList<>();
+ HashMap<String,Boolean> enabledByUri=new HashMap<>();
  int selected=-1;
 
  int dp(float x){return (int)(x*getResources().getDisplayMetrics().density+.5f);}
@@ -53,7 +53,7 @@ public class GmodModActivity extends Activity {
  boolean isMod(DocumentFile f){String n=f.getName();return f.isDirectory()||(n!=null&&n.toLowerCase(Locale.ROOT).endsWith(".gma"));}
 
  void load(){
-  items.clear();enabled.clear();list.removeAllViews();selected=-1;
+  items.clear();enabledByUri.clear();list.removeAllViews();selected=-1;
   ArrayList<DocumentFile> local=new ArrayList<>(),workshop=new ArrayList<>();
   collect(addons,true,local,workshop);collect(disabled,false,local,workshop);
   addSection("本地模组",local);addSection("创意工坊模组",workshop);
@@ -64,13 +64,13 @@ public class GmodModActivity extends Activity {
   for(DocumentFile f:parent.listFiles())if(isMod(f)){
    if(workshopId(f).isEmpty())local.add(f);else workshop.add(f);
    // Enabled state is derived from which root folder contains this addon.
-   enabled.add(active);
+   enabledByUri.put(f.getUri().toString(),active);
   }
  }
  void addSection(String label,ArrayList<DocumentFile> files){
   if(files.isEmpty())return;
   TextView heading=text(label+"  ·  "+files.size(),11,BLUE,true);heading.setPadding(dp(8),dp(14),dp(8),dp(7));list.addView(heading);
-  for(DocumentFile f:files)addRow(f);
+  for(DocumentFile f:files)addRow(f,enabledByUri.get(f.getUri().toString())!=null&&enabledByUri.get(f.getUri().toString()));
  }
  void addRow(DocumentFile f){
   boolean active=isUnder(f,addons);
@@ -151,7 +151,7 @@ public class GmodModActivity extends Activity {
 
  void manage(){new AlertDialog.Builder(this).setTitle("模组管理").setItems(new String[]{"刷新列表","启用/禁用所选模组","删除所选模组"},(d,w)->{if(w==0)load();else if(selected<0||selected>=items.size())toast("请先选择模组");else if(w==1)toggleSelected();else deleteSelected();}).show();}
  void toggleSelected(){
-  try{DocumentFile f=items.get(selected);boolean active=isUnder(f,addons);move(f,active?disabled:addons,f.getName());load();toast(active?"已禁用模组":"已启用模组");}
+  try{DocumentFile f=items.get(selected);boolean active=enabledByUri.get(f.getUri().toString())!=null&&enabledByUri.get(f.getUri().toString());move(f,active?disabled:addons,f.getName());load();toast(active?"已禁用模组":"已启用模组");}
   catch(Exception e){toast("状态切换失败："+e.getMessage());}
  }
  void deleteSelected(){DocumentFile f=items.get(selected);new AlertDialog.Builder(this).setMessage("确定删除 "+title(f)+"？").setPositiveButton("删除",(d,w)->{delete(f);load();}).setNegativeButton("取消",null).show();}
