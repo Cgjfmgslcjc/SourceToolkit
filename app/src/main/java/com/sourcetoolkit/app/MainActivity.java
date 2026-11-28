@@ -21,7 +21,7 @@ public class MainActivity extends Activity {
   View spacer=new View(this);root.addView(spacer,new LinearLayout.LayoutParams(1,dp(30)));
   section(root,"资源工具");
   toolRow(root,"VTF 转换器","PNG / JPG 转换为 Valve Texture Format",()->placeholder("VTF 转换器","VTF 编码器尚未接入。"));
-  toolRow(root,"VPK 浏览器","查看归档内容并导出文件",()->placeholder("VPK 浏览器","VPK 浏览与解包功能正在开发。"));
+  toolRow(root,"VPK 浏览器","查看归档内容并导出文件",()->startActivity(new Intent(this,VpkBrowserActivity.class)));
   View fill=new View(this);root.addView(fill,new LinearLayout.LayoutParams(1,0,1));
   View bottom=new View(this);bottom.setBackgroundColor(LINE);root.addView(bottom,new LinearLayout.LayoutParams(-1,dp(1)));
   LinearLayout footer=new LinearLayout(this);footer.setGravity(Gravity.CENTER_VERTICAL);footer.setPadding(0,dp(12),0,0);TextView version=text("SOURCE TOOLKIT  ·  0.1.0",9,0xFF65717A,false);footer.addView(version,new LinearLayout.LayoutParams(0,-2,1));TextView settings=text("设置  ›",12,MUTED,false);footer.addView(settings);settings.setOnClickListener(v->settings());root.addView(footer);
