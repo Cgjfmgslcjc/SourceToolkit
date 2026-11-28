@@ -2,6 +2,7 @@ package com.sourcetoolkit.app;
 
 import java.io.*;
 import java.util.*;
+import java.util.zip.CRC32;
 
 /** Bounds-checked readers for Source engine GMA and VPK containers. */
 public final class SourceFormats {
@@ -134,7 +135,13 @@ public final class SourceFormats {
             requireRange(entry.offset,entry.size,f.length(),"GMA entry");
             f.seek(entry.offset); f.readFully(data);
         }
+        verifyCrc(data,entry.crc,entry.name);
         return data;
+    }
+
+    private static void verifyCrc(byte[] data,long expected,String name)throws IOException{
+        CRC32 crc=new CRC32();crc.update(data);
+        if(crc.getValue()!=(expected&0xffffffffL)) throw new IOException("CRC32 校验失败: "+name);
     }
 
     /** Reads a VPK entry, including its preload bytes and payload. file must be the _dir.vpk. */
@@ -154,6 +161,7 @@ public final class SourceFormats {
             requireRange(payloadOffset,entry.size,f.length(),"VPK entry " + entry.name);
             f.seek(payloadOffset); f.readFully(result,entry.preload.length,(int)entry.size);
         }
+        verifyCrc(result,entry.crc,entry.name);
         return result;
     }
 }
