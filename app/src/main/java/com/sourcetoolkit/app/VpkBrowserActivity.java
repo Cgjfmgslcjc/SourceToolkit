@@ -49,8 +49,8 @@ public class VpkBrowserActivity extends Activity {
             else if(request==SAVE_ENTRY&&selected!=null){OutputStream out=getContentResolver().openOutputStream(data.getData());if(out==null)throw new IOException("无法创建目标文件");byte[] bytes=SourceFormats.readVpkEntry(archiveFile,selected);out.write(bytes);out.close();Toast.makeText(this,"导出完成",Toast.LENGTH_SHORT).show();}
         }catch(Exception e){Toast.makeText(this,"操作失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
     }
-    File copyToCache(DocumentFile doc)throws Exception{
-        File out=new File(getCacheDir(),"browse_"+System.currentTimeMillis()+".vpk");
+    File copyToCache(DocumentFile doc,File targetDir)throws Exception{
+        File out=new File(targetDir,doc.getName());
         InputStream in=getContentResolver().openInputStream(doc.getUri());if(in==null)throw new IOException("无法读取文件");
         try(FileOutputStream os=new FileOutputStream(out)){byte[] b=new byte[32768];int n;while((n=in.read(b))!=-1)os.write(b,0,n);}finally{in.close();}
         return out;
