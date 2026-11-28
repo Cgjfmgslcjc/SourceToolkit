@@ -51,9 +51,7 @@ public class VtfConverterActivity extends Activity {
     Button button(String s){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(TEXT);b.setTextSize(12);b.setBackgroundColor(0xFF1B2227);return b;}
 
     void pick(){
-        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/*");i.addCategory(Intent.CATEGORY_OPENABLE);
-        i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
-        startActivityForResult(i,PICK_IMAGE);
+        Intent i=new Intent(this,GameFolderPickerActivity.class);i.putExtra("mode","multi");i.putExtra("extensions","png,jpg,jpeg");i.putExtra("start_path","");startActivityForResult(i,PICK_IMAGE);
     }
 
     void updateUi(){
@@ -90,7 +88,7 @@ public class VtfConverterActivity extends Activity {
             exportMode=which;
             if(which==0)exportToGame("materials/vgui/logos");
             else if(which==1)exportToGame("materials");
-            else{Intent i=new Intent(this,GameFolderPickerActivity.class);i.putExtra("start_path","materials");startActivityForResult(i,PICK_EXPORT_FOLDER);}
+            else{Intent i=new Intent(this,GameFolderPickerActivity.class);i.putExtra("mode","folder");i.putExtra("start_path","materials");startActivityForResult(i,PICK_EXPORT_FOLDER);}
         }).setNegativeButton("取消",null).show();
     }
     DocumentFile ensureFolder(DocumentFile root,String relative)throws IOException{
@@ -127,14 +125,14 @@ public class VtfConverterActivity extends Activity {
         try{
             if(request==PICK_IMAGE){
                 ArrayList<Uri> uris=new ArrayList<>();
-                if(data.getClipData()!=null){ClipData clip=data.getClipData();for(int i=0;i<clip.getItemCount();i++)uris.add(clip.getItemAt(i).getUri());}
-                else if(data.getData()!=null)uris.add(data.getData());
+                ArrayList<String> selectedUris=data.getStringArrayListExtra("selected_uris");
+                if(selectedUris!=null)for(String u:selectedUris)uris.add(Uri.parse(u));
                 if(uris.isEmpty())throw new IOException("没有选择图片");
                 if(frames.size()+uris.size()>MAX_FRAMES)throw new IOException("VTF 帧数不能超过 65535");
                 int expectedW=frames.isEmpty()?-1:frames.get(0).getWidth(),expectedH=frames.isEmpty()?-1:frames.get(0).getHeight();
                 ArrayList<Bitmap> decoded=new ArrayList<>();
                 for(Uri uri:uris){
-                    Bitmap bitmap;try(InputStream in=getContentResolver().openInputStream(uri)){bitmap=BitmapFactory.decodeStream(in);}
+                    Bitmap bitmap;try(InputStream in=openUri(uri)){bitmap=BitmapFactory.decodeStream(in);}
                     if(bitmap==null)throw new IOException("有图片无法解码");
                     if(expectedW<0){expectedW=bitmap.getWidth();expectedH=bitmap.getHeight();}
                     if(bitmap.getWidth()!=expectedW||bitmap.getHeight()!=expectedH){bitmap.recycle();for(Bitmap b:decoded)b.recycle();throw new IOException("多帧 VTF 要求所有图片尺寸一致。当前尺寸应为 "+expectedW+" × "+expectedH);}
@@ -144,11 +142,15 @@ public class VtfConverterActivity extends Activity {
             }
         }catch(Exception e){Toast.makeText(this,"转换失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
     }
+    InputStream openUri(Uri uri)throws IOException{
+        if("file".equalsIgnoreCase(uri.getScheme()))return new FileInputStream(new File(uri.getPath()));
+        InputStream in=getContentResolver().openInputStream(uri);if(in==null)throw new IOException("无法打开文件");return in;
+    }
     void exportToGame(String relative){
         try{
             String uri=getSharedPreferences(MainActivity.PREF,0).getString(MainActivity.GAME_URI,null);
             if(uri==null)throw new IOException("尚未设置游戏目录");
-            DocumentFile root=DocumentFile.fromTreeUri(this,Uri.parse(uri));
+            DocumentFile root=MainActivity.gameRoot(this);
             if(root==null||!root.isDirectory())throw new IOException("游戏目录授权失效，请重新选择");
             if(!relative.equals("materials")&&!relative.startsWith("materials/"))throw new IOException("导出位置必须在 materials 内");
             DocumentFile target=ensureFolder(root,relative);
