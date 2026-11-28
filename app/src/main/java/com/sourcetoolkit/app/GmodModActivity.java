@@ -72,8 +72,7 @@ public class GmodModActivity extends Activity {
   TextView heading=text(label+"  ·  "+files.size(),11,BLUE,true);heading.setPadding(dp(8),dp(14),dp(8),dp(7));list.addView(heading);
   for(DocumentFile f:files)addRow(f,enabledByUri.get(f.getUri().toString())!=null&&enabledByUri.get(f.getUri().toString()));
  }
- void addRow(DocumentFile f){
-  boolean active=isUnder(f,addons);
+ void addRow(DocumentFile f,boolean active){
   items.add(f);
   LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(8),dp(8),dp(8),dp(8));row.setBackgroundColor(SURFACE);
   ImageView image=new ImageView(this);image.setScaleType(ImageView.ScaleType.CENTER_CROP);
@@ -89,11 +88,7 @@ public class GmodModActivity extends Activity {
   int index=items.size()-1;row.setOnClickListener(v->{selected=index;for(int i=0;i<list.getChildCount();i++){View child=list.getChildAt(i);if(child.getTag()!=null)child.setBackgroundColor(child==row?0xFF1B2A36:SURFACE);}row.setBackgroundColor(0xFF1B2A36);});
   row.setTag("addon-row");list.addView(row);line(list,0,0);
  }
- boolean isUnder(DocumentFile f,DocumentFile parent){
-  // SAF providers can return different URI encodings; compare the parent URI prefix.
-  String child=f.getUri().toString(),base=parent.getUri().toString();
-  return child.startsWith(base);
- }
+
 
  String title(DocumentFile f){try{JSONObject o=metadata(f);String t=first(o,"title","name","addonTitle","addon_name");if(t.isEmpty()&&o.opt("addon") instanceof JSONObject)t=first(o.optJSONObject("addon"),"title","name");if(!t.isEmpty())return t;}catch(Exception ignored){}String n=f.getName();return n==null?"Unknown":n.replaceAll("(?i)\\.gma$","");}
  String description(DocumentFile f){try{return first(metadata(f),"description","desc","summary");}catch(Exception e){return "";}}
