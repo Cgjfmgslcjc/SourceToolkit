@@ -133,7 +133,7 @@ public class GmodModActivity extends Activity {
     for(SourceFormats.Entry e:SourceFormats.readGma(file)){String n=e.name.toLowerCase(Locale.ROOT);if(n.equals("icon.png")||n.equals("icon.jpg")||n.equals("addon.jpg")||n.equals("thumb.jpg")){byte[] z=entryBytes(file,e);still=BitmapFactory.decodeByteArray(z,0,z.length);if(still!=null)break;}if(n.equals("icon.vtf")||n.equals("materials/icon.vtf"))vtf=entryBytes(file,e);}
    }
    Drawable drawable=null;
-   if(vtf!=null){int count=Math.min(VtfDecoder.frameCount(vtf),48);AnimationDrawable animation=new AnimationDrawable();for(int i=0;i<count;i++){Bitmap frame=VtfDecoder.decode(vtf,i);animation.addFrame(new BitmapDrawable(getResources(),frame),100);}animation.setOneShot(false);drawable=animation;}
+   if(vtf!=null){int count=Math.min(VtfDecoder.frameCount(vtf),24);AnimationDrawable animation=new AnimationDrawable();for(int i=0;i<count;i++){Bitmap decoded=VtfDecoder.decode(vtf,i);Bitmap frame=Bitmap.createScaledBitmap(decoded,64,64,true);if(frame!=decoded)decoded.recycle();animation.addFrame(new BitmapDrawable(getResources(),frame),100);}animation.setOneShot(false);drawable=animation;}
    else if(still!=null)drawable=new BitmapDrawable(getResources(),still);
    if(drawable!=null){Drawable result=drawable;runOnUiThread(()->{if(f.getUri().toString().equals(target.getTag())){target.setImageDrawable(result);if(result instanceof AnimationDrawable)((AnimationDrawable)result).start();}});}
    else loadPreviewAsync(f,target);
