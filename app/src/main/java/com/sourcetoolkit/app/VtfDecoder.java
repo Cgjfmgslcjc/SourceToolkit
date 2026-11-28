@@ -9,7 +9,8 @@ import java.util.Arrays;
 /** Small VTF decoder for common addon-icon formats. */
 public final class VtfDecoder {
     private VtfDecoder() {}
-    public static Bitmap decode(byte[] data) throws IOException {
+    public static Bitmap decode(byte[] data) throws IOException { return decode(data,0); }
+    public static Bitmap decode(byte[] data,int frameIndex) throws IOException {
         if(data==null||data.length<64)throw new IOException("VTF 文件太短");
         ByteBuffer b=ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
         if(b.get(0)!='V'||b.get(1)!='T'||b.get(2)!='F'||b.get(3)!=0)throw new IOException("无效的 VTF 文件头");
@@ -21,6 +22,7 @@ public final class VtfDecoder {
         int lowFormat=b.getInt(57),lowW=b.get(61)&255,lowH=b.get(62)&255;
         int depth=minor>=2?(b.getShort(63)&65535):1;
         if(width<1||height<1||frames<1||mipCount<1)throw new IOException("VTF 尺寸或帧数无效");
+        if(frameIndex<0||frameIndex>=frames)throw new IOException("VTF 帧索引超出范围");
         long pos=headerSize;
         if(lowFormat!=-1&&lowW>0&&lowH>0)pos+=imageSize(lowW,lowH,lowFormat);
         long faces=((b.getInt(20)&0x4000)!=0)?(minor>=5?7:6):1;
@@ -30,6 +32,7 @@ public final class VtfDecoder {
         }
         pos+=(long)0; // top mip begins at pos
         int size=imageSize(width,height,format);
+        pos+=(long)frameIndex*size;
         if(pos<0||pos+size>data.length)throw new IOException("VTF 图像数据不完整");
         return decodePixels(data,(int)pos,width,height,format);
     }
