@@ -21,6 +21,7 @@ public class MainActivity extends Activity {
   View spacer=new View(this);root.addView(spacer,new LinearLayout.LayoutParams(1,dp(30)));
   section(root,"资源工具");
   toolRow(root,"VTF 转换器","PNG / JPG 转换为 Valve Texture Format",()->startActivity(new Intent(this,VtfConverterActivity.class)));
+  toolRow(root,"VTF 转 PNG","预览 VTF 动画帧并导出 PNG",()->startActivity(new Intent(this,VtfToPngActivity.class)));
   toolRow(root,"VPK 浏览器","查看归档内容并导出文件",()->startActivity(new Intent(this,VpkBrowserActivity.class)));
   View fill=new View(this);root.addView(fill,new LinearLayout.LayoutParams(1,0,1));
   View bottom=new View(this);bottom.setBackgroundColor(LINE);root.addView(bottom,new LinearLayout.LayoutParams(-1,dp(1)));
