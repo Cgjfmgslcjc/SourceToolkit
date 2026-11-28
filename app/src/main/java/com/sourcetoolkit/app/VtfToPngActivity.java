@@ -92,8 +92,7 @@ public class VtfToPngActivity extends Activity {
     }
     void savePng(){
         if(preview==null)return;
-        Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("image/png");
-        i.putExtra(Intent.EXTRA_TITLE,"texture_frame_"+(currentFrame+1)+".png");startActivityForResult(i,SAVE_PNG);
+        Intent i=new Intent(this,GameFolderPickerActivity.class);i.putExtra("mode","folder");i.putExtra("start_path","");startActivityForResult(i,SAVE_PNG);
     }
     @Override protected void onDestroy(){super.onDestroy();if(preview!=null&&!preview.isRecycled())preview.recycle();}
 }
