@@ -157,9 +157,9 @@ public class VtfConverterActivity extends Activity {
             String baseTexture=relative.equals("materials")?exportName:relative.substring("materials/".length()).replace('/','/')+"/"+exportName;
             String vmt;
             if(exportMode==0){
-                vmt="\"UnlitGeneric\"\\n{\\n    \"$basetexture\" \"vgui/logos/"+exportName+"\"\\n    \"$translucent\" \"1\"\\n    \"$vertexcolor\" \"1\"\\n    \"$vertexalpha\" \"1\"\\n}\\n";
+                vmt="\"UnlitGeneric\"\n{\n    \"$basetexture\" \"vgui/logos/"+exportName+"\"\n    \"$translucent\" \"1\"\n    \"$vertexcolor\" \"1\"\n    \"$vertexalpha\" \"1\"\n}\n";
             }else{
-                vmt="\"LightmappedGeneric\"\\n{\\n    \"$basetexture\" \""+baseTexture+"\"\\n}\\n";
+                vmt="\"LightmappedGeneric\"\n{\n    \"$basetexture\" \""+baseTexture+"\"\n}\n";
             }
             writeGameFile(target,exportName+".vmt","text/plain",vmt.getBytes("UTF-8"));
             Toast.makeText(this,"VTF 与配套 VMT 已导出到 garrysmod/"+relative,Toast.LENGTH_LONG).show();
