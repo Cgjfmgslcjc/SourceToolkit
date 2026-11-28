@@ -77,7 +77,7 @@ public class GmodModActivity extends Activity {
   LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(8),dp(8),dp(8),dp(8));row.setBackgroundColor(SURFACE);
   ImageView image=new ImageView(this);image.setScaleType(ImageView.ScaleType.CENTER_CROP);
   GradientDrawable fallback=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xFF17334A,0xFF101A22});fallback.setStroke(dp(1),0xFF38434C);image.setImageDrawable(fallback);
-  Bitmap local=localIcon(f);if(local!=null)image.setImageBitmap(local);else loadPreviewAsync(f,image);
+  loadIconAsync(f,image);
   row.addView(image,new LinearLayout.LayoutParams(dp(42),dp(42)));
   LinearLayout name=new LinearLayout(this);name.setOrientation(1);name.setPadding(dp(10),0,0,0);
   String title=title(f),id=workshopId(f);
@@ -121,15 +121,23 @@ public class GmodModActivity extends Activity {
  }
  byte[] entryBytes(File f,SourceFormats.Entry e)throws Exception{if(e.size<0||e.size>8*1024*1024)return new byte[0];RandomAccessFile r=new RandomAccessFile(f,"r");try{r.seek(e.offset);byte[] b=new byte[(int)e.size];r.readFully(b);return b;}finally{r.close();}}
 
- Bitmap localIcon(DocumentFile f){
-  try{
+ void loadIconAsync(DocumentFile f,ImageView target){
+  target.setTag(f.getUri().toString());
+  new Thread(()->{try{
+   byte[] vtf=null;Bitmap still=null;
    if(f.isDirectory()){
-    for(String n:new String[]{"icon.png","icon.jpg","addon.jpg","thumb.jpg"}){DocumentFile x=findIgnoreCase(f,n);if(x!=null){InputStream in=getContentResolver().openInputStream(x.getUri());Bitmap b=BitmapFactory.decodeStream(in);in.close();if(b!=null)return b;}}
-    DocumentFile v=findIgnoreCase(f,"icon.vtf");if(v!=null){InputStream in=getContentResolver().openInputStream(v.getUri());ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);in.close();return VtfDecoder.decode(out.toByteArray());}
+    for(String n:new String[]{"icon.png","icon.jpg","addon.jpg","thumb.jpg"}){DocumentFile x=findIgnoreCase(f,n);if(x!=null){try(InputStream in=getContentResolver().openInputStream(x.getUri())){still=BitmapFactory.decodeStream(in);}if(still!=null)break;}}
+    if(still==null){DocumentFile x=findIgnoreCase(f,"icon.vtf");if(x!=null)try(InputStream in=getContentResolver().openInputStream(x.getUri());ByteArrayOutputStream o=new ByteArrayOutputStream()){byte[] z=new byte[8192];int n;while((n=in.read(z))!=-1)o.write(z,0,n);vtf=o.toByteArray();}}
    }else{
-    File g=cacheGma(f);for(SourceFormats.Entry e:SourceFormats.readGma(g)){String n=e.name.toLowerCase(Locale.ROOT);if(n.equals("icon.png")||n.equals("icon.jpg")||n.equals("addon.jpg")||n.equals("thumb.jpg")){byte[] d=entryBytes(g,e);return BitmapFactory.decodeByteArray(d,0,d.length);}if(n.equals("icon.vtf")||n.equals("materials/icon.vtf"))return VtfDecoder.decode(entryBytes(g,e));}
+    File file=cacheGma(f);
+    for(SourceFormats.Entry e:SourceFormats.readGma(file)){String n=e.name.toLowerCase(Locale.ROOT);if(n.equals("icon.png")||n.equals("icon.jpg")||n.equals("addon.jpg")||n.equals("thumb.jpg")){byte[] z=entryBytes(file,e);still=BitmapFactory.decodeByteArray(z,0,z.length);if(still!=null)break;}if(n.equals("icon.vtf")||n.equals("materials/icon.vtf"))vtf=entryBytes(file,e);}
    }
-  }catch(Exception ignored){}return null;
+   Drawable drawable=null;
+   if(vtf!=null){int count=Math.min(VtfDecoder.frameCount(vtf),48);AnimationDrawable animation=new AnimationDrawable();for(int i=0;i<count;i++){Bitmap frame=VtfDecoder.decode(vtf,i);animation.addFrame(new BitmapDrawable(getResources(),frame),100);}animation.setOneShot(false);drawable=animation;}
+   else if(still!=null)drawable=new BitmapDrawable(getResources(),still);
+   if(drawable!=null){Drawable result=drawable;runOnUiThread(()->{if(f.getUri().toString().equals(target.getTag())){target.setImageDrawable(result);if(result instanceof AnimationDrawable)((AnimationDrawable)result).start();}});}
+   else loadPreviewAsync(f,target);
+  }catch(Exception ignored){loadPreviewAsync(f,target);}}).start();
  }
  void loadPreviewAsync(DocumentFile f,ImageView target){
   String url=previewUrl(f);if(url.isEmpty())return;target.setTag(url);
