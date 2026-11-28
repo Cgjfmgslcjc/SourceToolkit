@@ -42,6 +42,7 @@ public class VpkBrowserActivity extends Activity {
         Button folder=button("选择导出目录",0xFF1B2227,TEXT);LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(44));fp.topMargin=dp(10);root.addView(folder,fp);folder.setOnClickListener(v->pickOutput());
         Button export=button("按原目录结构导出所选文件",BLUE,BG);LinearLayout.LayoutParams xp=new LinearLayout.LayoutParams(-1,dp(48));xp.topMargin=dp(8);root.addView(export,xp);export.setOnClickListener(v->exportSelected());
         search.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){filter();}public void afterTextChanged(Editable e){}});
+        scanVpkFolder("");
     }
     Button button(String s,int color,int tc){Button b=new Button(this);b.setText(s);b.setTextSize(13);b.setTextColor(tc);b.setAllCaps(false);b.setBackground(bg(color));return b;}
     @Override protected void onActivityResult(int request,int result,Intent data){
@@ -66,8 +67,14 @@ public class VpkBrowserActivity extends Activity {
             for(DocumentFile f:dir.listFiles()){String n=f.getName();if(f.isFile()&&n!=null&&n.toLowerCase(Locale.ROOT).endsWith(".vpk"))archives.add(f);}
             if(archives.isEmpty()){status.setText("该目录没有 VPK 文件");return;}
             Collections.sort(archives,(a,b)->a.getName().compareToIgnoreCase(b.getName()));
-            String[] names=new String[archives.size()];for(int i=0;i<names.length;i++)names[i]=archives.get(i).getName();
-            new AlertDialog.Builder(this).setTitle("选择 VPK · "+(relative==null||relative.isEmpty()?"garrysmod":relative)).setItems(names,(dialog,which)->loadVpkSet(dir,archives.get(which))).setNegativeButton("取消",null).show();
+            status.setText("VPK 文件 · "+(relative==null||relative.isEmpty()?"garrysmod":relative)+" · "+archives.size()+" 个");
+            list.removeAllViews();
+            for(DocumentFile archive:archives){
+                TextView row=text("▣  "+archive.getName()+"     ›",13,TEXT,false);
+                row.setPadding(dp(10),dp(15),dp(8),dp(15));row.setBackgroundColor(SURFACE);
+                LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=dp(1);list.addView(row,rp);
+                row.setOnClickListener(v->loadVpkSet(dir,archive));
+            }
         }catch(Exception e){Toast.makeText(this,"读取 VPK 目录失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
     }
     void loadVpkSet(DocumentFile dir,DocumentFile chosen){
