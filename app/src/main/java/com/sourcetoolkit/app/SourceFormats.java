@@ -164,4 +164,43 @@ public final class SourceFormats {
         verifyCrc(result,entry.crc,entry.name);
         return result;
     }
+
+    /** Rebuilds a GMA v3 archive from an editable directory. */
+    public static void writeGma(File root, File output, String title, String description, String author, long addonVersion) throws IOException {
+        if (root == null || !root.isDirectory()) throw new IOException("模组目录不存在");
+        ArrayList<File> files = new ArrayList<>();
+        collectFiles(root, root, files);
+        Collections.sort(files, new Comparator<File>() {
+            public int compare(File a, File b) { return relative(root,a).compareToIgnoreCase(relative(root,b)); }
+        });
+        try (RandomAccessFile out = new RandomAccessFile(output, "rw")) {
+            out.setLength(0);
+            out.write(new byte[]{'G','M','A','D'});
+            out.write(3);
+            writeI64(out,0); writeI64(out,System.currentTimeMillis()/1000L);
+            writeCString(out,"");
+            writeCString(out,title == null ? root.getName() : title);
+            writeCString(out,description == null ? "" : description);
+            writeCString(out,author == null ? "" : author);
+            writeU32(out,Math.max(1,Math.min(0xffffffffL,addonVersion)));
+            ArrayList<Long> sizes=new ArrayList<>(), crcs=new ArrayList<>();
+            for (int i=0;i<files.size();i++) {
+                File f=files.get(i);
+                CRC32 crc=new CRC32();
+                try(InputStream in=new FileInputStream(f)){byte[] b=new byte[32768];int n;while((n=in.read(b))!=-1)crc.update(b,0,n);}
+                String name=relative(root,f).replace(File.separatorChar,'/');
+                writeI64(out,i+1);writeCString(out,name);writeI64(out,f.length());writeU32(out,crc.getValue());
+            }
+            writeI64(out,0);
+            for(File f:files)try(InputStream in=new FileInputStream(f)){byte[] b=new byte[32768];int n;while((n=in.read(b))!=-1)out.write(b,0,n);}
+        }
+    }
+    private static void collectFiles(File root, File dir, List<File> out) throws IOException {
+        File[] children=dir.listFiles(); if(children==null)throw new IOException("无法读取模组目录");
+        for(File f:children){if(f.isDirectory())collectFiles(root,f,out);else if(f.isFile())out.add(f);}
+    }
+    private static String relative(File root,File f){return root.toURI().relativize(f.toURI()).getPath();}
+    private static void writeCString(RandomAccessFile f,String s)throws IOException{f.write((s==null?"":s).getBytes("UTF-8"));f.write(0);}
+    private static void writeU32(RandomAccessFile f,long v)throws IOException{for(int i=0;i<4;i++)f.write((int)(v>>(8*i))&255);}
+    private static void writeI64(RandomAccessFile f,long v)throws IOException{for(int i=0;i<8;i++)f.write((int)(v>>(8*i))&255);}
 }
