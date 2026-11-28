@@ -14,7 +14,8 @@ public class VtfConverterActivity extends Activity {
     static final int PICK_IMAGE=81, SAVE_VTF=82;
     final int BG=0xFF0B0E10, TEXT=0xFFE6EAED, MUTED=0xFF9AA5AD, BLUE=0xFF2D9CFF;
     Bitmap bitmap;
-    TextView info;\n    ImageView previewView;
+    TextView info;
+    ImageView previewView;
     int dp(float x){return (int)(x*getResources().getDisplayMetrics().density+.5f);}
     TextView text(String s,int size,int color){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);return t;}
     @Override public void onCreate(Bundle b){
