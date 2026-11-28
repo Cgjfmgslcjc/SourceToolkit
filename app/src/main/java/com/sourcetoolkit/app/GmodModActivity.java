@@ -155,7 +155,25 @@ public class GmodModActivity extends Activity {
   load();
  }catch(Exception e){toast("导入失败："+e.getMessage());}}
  DocumentFile docFromUri(Uri u){return "file".equalsIgnoreCase(u.getScheme())?DocumentFile.fromFile(new File(u.getPath())):DocumentFile.fromSingleUri(this,u);}
- void create(){EditText e=new EditText(this);e.setHint("模组名称");new AlertDialog.Builder(this).setTitle("新建模组").setView(e).setPositiveButton("创建",(d,w)->{String n=e.getText().toString().trim();if(n.isEmpty())return;DocumentFile f=addons.createDirectory(n);try{DocumentFile j=f.createFile("application/json","addon.json");OutputStream o=getContentResolver().openOutputStream(j.getUri());o.write(("{\"title\":\""+n+"\"}").getBytes("UTF-8"));o.close();}catch(Exception ignored){}load();}).setNegativeButton("取消",null).show();}
+ void create(){
+  LinearLayout form=new LinearLayout(this);form.setOrientation(1);form.setPadding(dp(8),dp(4),dp(8),0);
+  EditText name=new EditText(this);name.setSingleLine(true);name.setHint("模组名称（必填）");form.addView(name);
+  EditText desc=new EditText(this);desc.setHint("模组描述");form.addView(desc);
+  EditText author=new EditText(this);author.setSingleLine(true);author.setHint("作者");form.addView(author);
+  EditText version=new EditText(this);version.setSingleLine(true);version.setInputType(2);version.setText("1");version.setHint("版本号");form.addView(version);
+  new AlertDialog.Builder(this).setTitle("创建新模组").setView(form).setPositiveButton("创建",(d,w)->{
+   String n=name.getText().toString().trim();if(n.isEmpty()){toast("模组名称不能为空");return;}
+   String safe=n.replaceAll("[\\\\/:*?\\\"<>|]","_");DocumentFile f=addons.createDirectory(safe);
+   if(f==null){toast("创建目录失败");return;}
+   try{
+    JSONObject meta=new JSONObject();meta.put("title",n);meta.put("name",n);meta.put("description",desc.getText().toString().trim());meta.put("author",author.getText().toString().trim());meta.put("version",Math.max(1,Integer.parseInt(version.getText().toString().trim().isEmpty()?"1":version.getText().toString().trim())));
+    DocumentFile j=f.createFile("application/json","addon.json");try(OutputStream o=getContentResolver().openOutputStream(j.getUri())){o.write(meta.toString(2).getBytes("UTF-8"));}
+    DocumentFile lua=f.createDirectory("lua");DocumentFile auto=lua.createDirectory("autorun");DocumentFile client=lua.createDirectory("autorun_client");lua.createDirectory("autorun_server");lua.createDirectory("autorun_shared");
+    DocumentFile readme=f.createFile("text/plain","README.txt");try(OutputStream o=getContentResolver().openOutputStream(readme.getUri())){o.write(("模组："+n+"\\n作者："+author.getText().toString().trim()+"\\n\\n将 Lua 脚本放入 lua/autorun 或对应客户端/服务端目录。").getBytes("UTF-8"));}
+    load();toast("已创建模组目录和基础结构");
+   }catch(Exception ex){toast("创建失败："+ex.getMessage());}
+  }).setNegativeButton("取消",null).show();
+ }
 
  void manage(){new AlertDialog.Builder(this).setTitle("模组管理").setItems(new String[]{"刷新列表","启用/禁用所选模组","删除所选模组"},(d,w)->{if(w==0)load();else if(selected<0||selected>=items.size())toast("请先选择模组");else if(w==1)toggleSelected();else deleteSelected();}).show();}
  void toggleSelected(){
