@@ -56,44 +56,6 @@ public class VtfConverterActivity extends Activity {
         startActivityForResult(i,PICK_IMAGE);
     }
 
-    @Override protected void onActivityResult(int request,int result,Intent data){
-        super.onActivityResult(request,result,data);if(result!=RESULT_OK||data==null)return;
-        try{
-            if(request==PICK_IMAGE){
-                ArrayList<Uri> uris=new ArrayList<>();
-                if(data.getClipData()!=null){
-                    ClipData clip=data.getClipData();
-                    for(int i=0;i<clip.getItemCount();i++)uris.add(clip.getItemAt(i).getUri());
-                }else if(data.getData()!=null)uris.add(data.getData());
-                if(uris.isEmpty())throw new IOException("没有选择图片");
-                if(frames.size()+uris.size()>MAX_FRAMES)throw new IOException("VTF 帧数不能超过 65535");
-                int expectedW=frames.isEmpty()?-1:frames.get(0).getWidth();
-                int expectedH=frames.isEmpty()?-1:frames.get(0).getHeight();
-                ArrayList<Bitmap> decoded=new ArrayList<>();
-                for(Uri uri:uris){
-                    Bitmap bitmap;
-                    try(InputStream in=getContentResolver().openInputStream(uri)){bitmap=BitmapFactory.decodeStream(in);}
-                    if(bitmap==null)throw new IOException("有图片无法解码");
-                    if(expectedW<0){expectedW=bitmap.getWidth();expectedH=bitmap.getHeight();}
-                    if(bitmap.getWidth()!=expectedW||bitmap.getHeight()!=expectedH){
-                        bitmap.recycle();
-                        for(Bitmap b:decoded)b.recycle();
-                        throw new IOException("多帧 VTF 要求所有图片尺寸一致。当前尺寸应为 "+expectedW+" × "+expectedH);
-                    }
-                    decoded.add(bitmap);
-                }
-                frames.addAll(decoded);currentFrame=frames.size()-decoded.size();updateUi();
-                Toast.makeText(this,"已添加 "+decoded.size()+" 帧",Toast.LENGTH_SHORT).show();
-            }else if(request==SAVE_VTF&&!frames.isEmpty()){
-                try(OutputStream out=getContentResolver().openOutputStream(data.getData())){
-                    if(out==null)throw new IOException("无法写入目标文件");
-                    writeVtf(out,frames);
-                }
-                Toast.makeText(this,"VTF 导出完成（"+frames.size()+" 帧）",Toast.LENGTH_SHORT).show();
-            }
-        }catch(Exception e){Toast.makeText(this,"转换失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
-    }
-
     void updateUi(){
         boolean has=!frames.isEmpty();
         if(has){Bitmap b=frames.get(currentFrame);previewView.setImageBitmap(b);info.setText("帧 "+(currentFrame+1)+" / "+frames.size()+"    "+b.getWidth()+" × "+b.getHeight()+"    RGBA8888");}
