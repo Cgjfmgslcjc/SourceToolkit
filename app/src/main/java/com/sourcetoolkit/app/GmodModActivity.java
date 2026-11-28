@@ -32,7 +32,7 @@ public class GmodModActivity extends Activity {
   super.onCreate(b);getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);
   String s=getSharedPreferences(MainActivity.PREF,0).getString(MainActivity.GAME_URI,null);
   if(s==null){finish();return;}
-  DocumentFile root=DocumentFile.fromTreeUri(this,Uri.parse(s));
+  DocumentFile root=MainActivity.gameRoot(this);
   addons=folder(root,"addons");disabled=folder(root,"addons_disabled");render();
  }
  DocumentFile folder(DocumentFile p,String n){DocumentFile f=p.findFile(n);return f!=null&&f.isDirectory()?f:p.createDirectory(n);}
@@ -148,8 +148,13 @@ public class GmodModActivity extends Activity {
  }
 
  String read(DocumentFile f)throws Exception{InputStream in=getContentResolver().openInputStream(f.getUri());ByteArrayOutputStream o=new ByteArrayOutputStream();byte[] b=new byte[4096];int n;while((n=in.read(b))>0)o.write(b,0,n);in.close();return o.toString("UTF-8");}
- void addDialog(){new AlertDialog.Builder(this).setTitle("添加模组").setItems(new String[]{"导入 GMA 文件","导入模组文件夹","新建空白模组"},(d,w)->{if(w==0){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("*/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,PICK_GMA);}else if(w==1){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);startActivityForResult(i,PICK_DIR);}else create();}).show();}
- @Override protected void onActivityResult(int r,int c,Intent d){super.onActivityResult(r,c,d);if(c!=RESULT_OK||d==null)return;try{Uri u=d.getData();getContentResolver().takePersistableUriPermission(u,d.getFlags()&3);if(r==PICK_GMA){DocumentFile src=DocumentFile.fromSingleUri(this,u);DocumentFile dst=addons.createFile("application/octet-stream",src.getName());copy(src,dst);}else if(r==PICK_DIR){DocumentFile src=DocumentFile.fromTreeUri(this,u);copyTree(src,addons,src.getName());}load();}catch(Exception e){toast("导入失败："+e.getMessage());}}
+ void addDialog(){new AlertDialog.Builder(this).setTitle("添加模组").setItems(new String[]{"导入 GMA 文件","导入模组文件夹","新建空白模组"},(d,w)->{if(w==0){Intent i=new Intent(this,GameFolderPickerActivity.class);i.putExtra("mode","file");i.putExtra("extensions","gma");startActivityForResult(i,PICK_GMA);}else if(w==1){Intent i=new Intent(this,GameFolderPickerActivity.class);i.putExtra("mode","folder");i.putExtra("start_path","");startActivityForResult(i,PICK_DIR);}else create();}).show();}
+ @Override protected void onActivityResult(int r,int c,Intent d){super.onActivityResult(r,c,d);if(c!=RESULT_OK||d==null)return;try{
+  if(r==PICK_GMA){Uri u=Uri.parse(d.getStringExtra("selected_uri"));DocumentFile src=docFromUri(u);DocumentFile dst=addons.createFile("application/octet-stream",d.getStringExtra("selected_name"));copy(src,dst);}
+  else if(r==PICK_DIR){String path=d.getStringExtra("folder_path");DocumentFile src=MainActivity.gameRoot(this);if(path!=null&&!path.isEmpty())for(String p:path.split("/"))src=src.findFile(p);if(src==null||!src.isDirectory())throw new IOException("所选模组文件夹无效");copyTree(src,addons,src.getName());}
+  load();
+ }catch(Exception e){toast("导入失败："+e.getMessage());}}
+ DocumentFile docFromUri(Uri u){return "file".equalsIgnoreCase(u.getScheme())?DocumentFile.fromFile(new File(u.getPath())):DocumentFile.fromSingleUri(this,u);}
  void create(){EditText e=new EditText(this);e.setHint("模组名称");new AlertDialog.Builder(this).setTitle("新建模组").setView(e).setPositiveButton("创建",(d,w)->{String n=e.getText().toString().trim();if(n.isEmpty())return;DocumentFile f=addons.createDirectory(n);try{DocumentFile j=f.createFile("application/json","addon.json");OutputStream o=getContentResolver().openOutputStream(j.getUri());o.write(("{\"title\":\""+n+"\"}").getBytes("UTF-8"));o.close();}catch(Exception ignored){}load();}).setNegativeButton("取消",null).show();}
 
  void manage(){new AlertDialog.Builder(this).setTitle("模组管理").setItems(new String[]{"刷新列表","启用/禁用所选模组","删除所选模组"},(d,w)->{if(w==0)load();else if(selected<0||selected>=items.size())toast("请先选择模组");else if(w==1)toggleSelected();else deleteSelected();}).show();}
